@@ -10,7 +10,9 @@ end;
 toolbox_dir = get_absolute_file_path('builder.sce');
 
 // By default, %otb_path is set to '../Overload_Toolbox/'
-%otb_path='../Overload_Toolbox'
+if ~exists(%otb_path) then
+   %otb_path='../Overload_Toolbox'
+end
 
 %otb_loader='/'+%otb_path+'/'+'loader.sce';
 if fileinfo(toolbox_dir+%otb_loader)~=[] then
