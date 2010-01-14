@@ -28,7 +28,7 @@
 //#include "xsci/x_data.h"
 //#define MAXCOLS term->screen.max_col
 //Scilab 5
-#include "scilines.h"
+//#include "scilines.h"
 #define MAXCOLS getColumnsSize()
 
 extern int detecteErreurs (void);
