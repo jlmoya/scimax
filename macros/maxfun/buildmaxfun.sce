@@ -21,6 +21,7 @@ mode(-1)
 
 global pathgen
 pathgen='genmaxfun/'
+mkdir(pathgen)
 
 global ov_fun
 ov_fun=[]
