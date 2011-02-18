@@ -32,7 +32,7 @@ exec('./personnalizedNames.sce',-1)
 maxmacros=lib('../')
 mdelete(pathgen+'overload.sce')
 
-getf('createmaxfun.sci','c')
+exec('createmaxfun.sci',-1)
 exec('listmaxfun.sce',-1)
 exec('personnalizedMaxfun.sce',-1)
 

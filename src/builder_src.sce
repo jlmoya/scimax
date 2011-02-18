@@ -1,4 +1,6 @@
 mode(-1);
+here = get_absolute_file_path('builder_src.sce');
+cd(here);
 printf('Entering in C directory ...\n');
 cd 'c';
 exec('builder_c.sce');
