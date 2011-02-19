@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #define MAXSTACK 32
 
@@ -932,6 +933,7 @@ createXmlFile (nam)
   if (!fd)
     {
       fprintf (stderr, "Error : cannot create file %s\n", namXml);
+      fprintf (stderr, "%s\n", strerror(errno));
       freeListNames ();
       exit (0);
       return NULL;

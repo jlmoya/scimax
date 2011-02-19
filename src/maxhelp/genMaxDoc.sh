@@ -18,6 +18,10 @@ if  ! test -f texi2scidoc; then
     exit
 fi
 
+if ! test -e $SCILAB_MAXDOC_DIR; then
+    mkdir -p $SCILAB_MAXDOC_DIR
+fi
+
 # this command generates listPnames.txt which contains personnalized names of
 # Maxima's functions
 scilab -nb -nw -nwni -f "genPnames.sce"
