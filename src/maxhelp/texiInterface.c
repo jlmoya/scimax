@@ -722,7 +722,8 @@ at_file ()
     return NULL;
   str = getArg (1);
   xml = malloc (strlen (str) + 10 + 11 + 1);
-  sprintf (xml, "<filename>%s</filename>", str);
+  // TODO replace literal by filename
+  sprintf (xml, "<literal>%s</literal>", str);
   return xml;
 }
 
@@ -752,7 +753,8 @@ at_kbd ()
     return NULL;
   str = getArg (1);
   xml = malloc (strlen (str) + 11 + 12 + 1);
-  sprintf (xml, "<userinput>%s</userinput>", str);
+  // TODO replace literal by userinput
+  sprintf (xml, "<literal>%s</literal>", str);
   return xml;
 }
 
@@ -767,7 +769,8 @@ at_key ()
     return NULL;
   str = getArg (1);
   xml = malloc (strlen (str) + 11 + 12 + 1);
-  sprintf (xml, "<userinput>%s</userinput>", str);
+  // TODO replace literal by userinput
+  sprintf (xml, "<literal>%s</literal>", str);
   return xml;
 }
 
@@ -797,7 +800,8 @@ at_dfn ()
     return NULL;
   str = getArg (1);
   xml = malloc (strlen (str) + 11 + 12 + 1);
-  sprintf (xml, "<firstterm>%s</firstterm>", str);
+  // TODO replace literal by filename
+  sprintf (xml, "<literal>%s</literal>", str);
   return xml;
 }
 
