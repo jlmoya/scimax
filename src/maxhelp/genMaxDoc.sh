@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 if [ $# != 1 ]; then
     echo "Wrong number of arguments"
     echo "fr_FR, en_US, ... is expected as argument"
