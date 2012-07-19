@@ -25,7 +25,14 @@
 #include "maxsci.h"
 
 int creerSym (int, char *, char **, int, int, char);
-inline int* creerSym2 (int, int);
+#ifndef _MSC_VER
+#define INLINE inline
+#else
+#define INLINE
+#endif 
+
+INLINE int* creerSym2 (int, int);
+
 int recupResult (int);
 void envoiDonnees (void);
 int detecteErreurs (void);
@@ -78,7 +85,7 @@ creerSym (pos, stro, tabstro, m, n, type)
   return 0;
 }
 
-inline int*
+INLINE int*
 creerSym2 (pos,taille)
      int pos, taille;
 {
@@ -196,6 +203,7 @@ int detecteErreurs (void)
       maxkill ();
       return -1;
     }
+  return 0;
 }
 
 void gererQuestion (void)

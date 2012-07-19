@@ -289,6 +289,9 @@ printStringMat (header,type)
   register int k;
   int mn = header[1] * header[2];
   char Open = '(', Close = ')';
+  int p;
+  register int i, j;
+  
 
   if (type == -54)
     {
@@ -324,8 +327,6 @@ printStringMat (header,type)
       Close = ']';
     }
   
-  int p;
-  register int i, j;
 
   for (i = 0; i < header[1]; i++)
     {

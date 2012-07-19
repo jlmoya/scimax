@@ -36,20 +36,31 @@
 #define isbc(ch) (*((int*)ch)==*((int*)"<BC>"))
 #define isbq(ch) (*((int*)ch)==*((int*)"<BQ>"))
 #define iseq(ch) (*((int*)ch)==*((int*)"<EQ>"))
+
+#ifndef _MSC_VER
 #define Putc(_ch,_fp) putc_unlocked(_ch,_fp)
 #define Getc(_fp) getc_unlocked(_fp)
+#else
+#define Putc(_ch,_fp) putc(_ch,_fp)
+#define Getc(_fp) getc(_fp)
+#endif
 
 #define BUFSIZE 256
 
 #ifdef GLOBAL
 unsigned char max_is_ok=0;
+
+#ifndef _MSC_VER
 pid_t pid;
+#endif
 FILE *is,*os;
 char buf[BUFSIZE];
 unsigned char quest_mode=0;
 #else
 extern unsigned char max_is_ok;
+#ifndef _MSC_VER
 extern pid_t pid;
+#endif
 extern FILE *is,*os,*ds;
 extern char buf[BUFSIZE];
 extern unsigned char quest_mode;

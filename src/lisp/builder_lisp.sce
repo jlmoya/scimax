@@ -1,5 +1,6 @@
 mode(-1);
-output=unix_g('maxima -q --batch-string "":lisp (load \""make.lisp\"")""');
+maxima_path=getenv('MAXIMA_EXE_PATH');
+output=unix_g(maxima_path + ' -q --batch-string "":lisp (load \""make.lisp\"")""');
 
 global %lisp_error;
 

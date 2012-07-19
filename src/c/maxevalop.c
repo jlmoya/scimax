@@ -30,7 +30,13 @@ extern void envoiDonnees (void);
 extern void CANCEL (void);
 extern int recupResult (int);
 
-inline void determineOp (char);
+#ifndef _MSC_VER
+#define INLINE inline
+#else
+#define INLINE
+#endif 
+
+INLINE void determineOp (char);
 
 int
 maxevalop (pos, stri)
@@ -81,7 +87,7 @@ maxevalop (pos, stri)
   return recupResult (pos);
 }
 
-inline void 
+INLINE void 
 determineOp (op)
      char op;
 {

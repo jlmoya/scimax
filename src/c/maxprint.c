@@ -65,7 +65,7 @@ int maxprint (void)
     return n;
   
   while ((VIDEOS, iseo (buf) == 0))
-    sciprint ("%s", buf);
+   if(!isbo(buf) )  sciprint ("%s", buf);
   
   return 0;
 }

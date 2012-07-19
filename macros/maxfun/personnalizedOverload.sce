@@ -4,7 +4,7 @@
 overload('cotg',["s"])
 overload('eval',["c"])
 overload('system',["s","i","p","r"])
-overload('printf',["c"])
+//overload('printf',["c"])
 overload('fix',["s","p","r"])
 overload('rank',["s"])
 overload('toeplitz',["s","c","p"])

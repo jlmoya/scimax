@@ -14,7 +14,7 @@ if ~exists('%otb_path') then
    %otb_path='../Overload_Toolbox'
 end
 
-%otb_loader='/'+%otb_path+'/'+'loader.sce';
+%otb_loader=%otb_path+'/'+'loader.sce';
 if fileinfo(toolbox_dir+%otb_loader)~=[] then
   path=toolbox_dir+%otb_loader;
 elseif fileinfo(%otb_loader)~=[] then
@@ -29,6 +29,19 @@ end
 fd=mopen('etc/Overload_TB_path.sce','w');
 mputl('Overload_TB_path='''+path+'''',fd);
 mclose(fd);
+
+
+if exists('%maxima_exe_path') then
+  fd=mopen('etc/MAXIMA_EXE_PATH.sce','w');
+  mputl('%maxima_exe_path='''+%maxima_exe_path+'''',fd);
+  mclose(fd);
+  setenv('MAXIMA_EXE_PATH',%maxima_exe_path)    
+else
+  printf("I need to know full path of maxima execution.\nPleases "+..
+	"set the variable MAXIMA_EXE_PATH=''path of maxima execution ''\n(maybe ''C:/Maima/bin/maxima.bat'') and"+...
+	 " re-exec builder.sce.\n");
+  abort;
+end
 
 // ====================================================================
 
@@ -52,7 +65,17 @@ end
 
 tbx_builder_macros(toolbox_dir);
 tbx_build_loader(TOOLBOX_NAME, toolbox_dir);
-
+cd(toolbox_dir);
 clear toolbox_dir TOOLBOX_NAME TOOLBOX_TITLE %otb_path fd %lisp_error;
 
 // ====================================================================
+
+
+
+
+
+
+
+
+
+

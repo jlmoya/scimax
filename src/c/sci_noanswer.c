@@ -30,9 +30,9 @@ sci_noanswer (fname)
   CheckLhs (1, 1);
 
   quest_mode = 0;
-  
+  #ifndef _MSC_VER
   kill (pid, SIGINT);
-
+  #endif
   do VIDEOS;
   while (iseo (buf) == 0);
 

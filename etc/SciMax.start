@@ -20,7 +20,7 @@
 mode(-1);
 lines(0);
 here=get_absolute_file_path('SciMax.start');
-mpath=here+'/../'
+mpath=strsubst(here','\','/')+'/../'
 
 setenv('SCIMAX_TOOLBOX_PATH',mpath)
 
@@ -33,6 +33,16 @@ else
   exec(Overload_TB_path,-1)
 end
 
+exec(here+'MAXIMA_EXE_PATH.sce',-1)
+if fileinfo(%maxima_exe_path)==[] then
+  printf('You need to set the full name of maxima execution in file ./etc/MAXIMA_EXE_PATH.sce\n')
+  clear  MAXIMA_EXE_PATH
+  abort
+else
+  setenv('MAXIMA_EXE_PATH',%maxima_exe_path)  
+end
+
+
 printf('\nLoading Maxima library : ')
 
 functions=['maxinit';'maxkill';'maxevalf';'maxevalfl';'%sym_p';'sym';'Matrix';'symnp';'defmf';'Syms';'latex';'mathml';'answer';'noanswer';'maxadd';'maxpow';'maxmul';'maxdiv';'maxsub';'maxbs';'maxpmul';'maxpdiv';'maxpbs';'maxppow';'maxfb';'maxkp';'maxlow';'maxleq';'maxgreat';'maxgeq';'maxneq';'maxeq';'maxaff']
@@ -42,7 +52,14 @@ if or(link()=='libmaxima') then
   abort
 end
 
-addinter(mpath+'src/c/libmaxima.so','libmaxima',functions)
+if getos() == 'Windows' then
+ LIBPATHNAME = mpath+'src/c/maxima' + getdynlibext();
+ ENTRYLIB = 'maxima';
+else
+ LIBPATHNAME = mpath+'src/c/libmaxima' + getdynlibext();
+ ENTRYLIB = 'libmaxima';
+end
+addinter(LIBPATHNAME,ENTRYLIB,functions)
 
 //La ligne suivante permet que le passage des parametres se fasse par reference
 //plutot que par valeur
@@ -102,3 +119,8 @@ xml_en_tete=['<?xml version=""1.0"" encoding=""UTF-8""?>';'<!DOCTYPE math PUBLIC
 printf('\n** Use maxinit to start Maxima  **\n')
 
 clear mpath Overload_TB_path functions types_geres op_maxfun m n f err
+
+
+
+
+

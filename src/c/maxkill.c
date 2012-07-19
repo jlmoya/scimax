@@ -23,20 +23,26 @@
 #include <string.h>
 #include "maxsci1.h"
 
+#ifndef _MSC_VER
 extern pid_t pid;
+#endif
 
 void maxkill (void)
 {
   if (max_is_ok == 1)
     { 
+      fprintf (is, "quit();\n"); fflush(is);//sent quit command to maxima
       fclose (is);
       fclose (os);
       sciprint ("Maxima is stopping : ");
-      if (kill (pid, SIGKILL) == -1)
-	{
-	  Scierror (9999, "A very serious error has occured : Maxima cannot be killed");
-	  return;
-	}
+      #ifndef _MSC_VER
+      if (kill (pid, SIGKILL) == -1)	
+      	{
+	        Scierror (9999, "A very serious error has occured : Maxima cannot be killed");
+	      return;
+	      }
+      #endif
+
       sciprint ("OK\n");
     }
   else sciprint ("Maxima is not running\n");
