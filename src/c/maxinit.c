@@ -35,7 +35,7 @@ int SpawnPipe(char *argv[], void **istream, void **ostream);
 #define GLOBAL
 #include "maxsci1.h"
 #include "sciprint.h"
-#include "scierror.h"
+#include "Scierror.h"
 
 extern int detecteErreurs (void);
 extern int recupResult (int);
