@@ -4,7 +4,11 @@ include='-I'+ici+'../include/ ';
 include=include+'-I'+SCI+'/../../include/scilab/shell/';
 
 
-cfuns=['sci_answer.c','sci_latex.c','sci_Matrix.c','sci_maxevalfl.c','sci_maxinit.c','sci_maxprint.c','sci_sym.c','sci_Syms.c','sci_defmf.c','sci_mathml.c','sci_maxevalf.c','sci_maxevalop.c','sci_maxkill.c','sci_noanswer.c','sci_symnp.c','donnees.c','latex.c','mathml.c','maxevalf.c','maxevalop.c','maxkill.c','symnp.c','defmf.c','gestionVar.c','Matrix.c','maxevalfl.c','maxinit.c','maxprint.c','sym.c','spawnpipe.c'];
+cfuns=['sci_answer.c','sci_latex.c','sci_Matrix.c','sci_maxevalfl.c','sci_maxinit.c','sci_maxprint.c','sci_sym.c','sci_Syms.c','sci_defmf.c','sci_mathml.c','sci_maxevalf.c','sci_maxevalop.c','sci_maxkill.c','sci_noanswer.c','sci_symnp.c','donnees.c','latex.c','mathml.c','maxevalf.c','maxevalop.c','maxkill.c','symnp.c','defmf.c','gestionVar.c','Matrix.c','maxevalfl.c','maxinit.c','maxprint.c','sym.c'];
+
+if getos()=="Windows" then
+    cfuns($+1)='spawnpipe.c';
+end
 
 functions=['maxinit' 'sci_maxinit';
 	   'maxkill' 'sci_maxkill';
