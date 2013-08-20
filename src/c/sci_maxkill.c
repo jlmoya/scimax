@@ -17,6 +17,8 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
+#define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
+#include "api_scilab.h"
 #include "stack-c.h"
 #include <string.h>
 

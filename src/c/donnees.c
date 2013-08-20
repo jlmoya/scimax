@@ -20,6 +20,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
+#include "api_scilab.h"
 #include "stack-c.h"
 #include "maxsci1.h"
 #include "maxsci.h"
