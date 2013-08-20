@@ -40,7 +40,7 @@ function create_Master_Help(my_dirs, my_titles, my_tbx_title, output_filename, l
 
         xml_files(grep(xml_files,"master_help.xml")) = [];
 
-        if MSDOS then
+        if getos() == "Windows" then
             for j=1:size(xml_files,'*')
                 xml_files_tmp(j) = "file:///"+ getshortpathname(xml_files(j));
             end
