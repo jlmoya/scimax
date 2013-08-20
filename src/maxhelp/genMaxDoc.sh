@@ -23,7 +23,7 @@ fi
 
 # this command generates listPnames.txt which contains personnalized names of
 # Maxima's functions
-scilab -nb -nw -nwni -f "genPnames.sce"
+SCI_DISABLE_TK=1 SCI_JAVA_ENABLE_HEADLESS=1 scilab -nb -nw -nwni -f "genPnames.sce"
 
 # we generate xml files in SCILAB_MAXDOC_DIR, the list of Maxima's function
 # in LISTMAXFUN_DIR  
@@ -33,7 +33,7 @@ scilab -nb -nw -nwni -f "genPnames.sce"
 cp -r $MAXDOC_DIR/figures $SCILAB_MAXDOC_DIR
 
 cd $SCILAB_MAXDOC_DIR/..
-scilab -nb -nw -e "maxima_version='$MAXIMA_VER';exec('build_help.sce');exit"
+SCI_DISABLE_TK=1 SCI_JAVA_ENABLE_HEADLESS=1 scilab -nb -nw -e "maxima_version='$MAXIMA_VER';exec('build_help.sce');exit"
 rm -r scilab_$1_help Maxima/* master_help.xml
 
 cd $CUR_DIR
