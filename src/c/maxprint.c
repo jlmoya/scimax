@@ -61,7 +61,7 @@ int maxprint (void)
   if (n == -1 || n == 1)
     return n;
   
-  while ((VIDEOS, iseo (buf) == 0))
+  while ((VIDEOS, iseo (buf) == 0 && !isbs (buf))) /* isbs: EOF escape (maxsci1.h) */
    if(!isbo(buf) )  sciprint ("%s", buf);
   
   return 0;

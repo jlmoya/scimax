@@ -26,11 +26,20 @@
 #include "sciprint.h"
 #include "Scierror.h"
 
+/* macOS/2027 port (Task 12): VIDEOS used to be a bare fgets(). On EOF,
+   fgets() returns NULL and leaves buf UNTOUCHED, so every marker-scanning
+   loop in donnees.c spun forever on the last stale line whenever the
+   Maxima child died (exec failure, crash, kill) -- the harness saw that as
+   a 300s TIMEOUT instead of an error. Inject a synthetic "<BS>" ("serious
+   error") marker line on EOF instead: detecteErreurs()'s existing <BS>
+   branch then fails loudly, and the other read loops carry an explicit
+   isbs() escape. Still an expression (usable in comma/do-while contexts). */
+#define __SM_READLINE (fgets(buf,BUFSIZE,os)!=NULL ? buf : strcpy(buf,"<BS>\n"))
 //#define DBG 1
 #ifdef DBG
-#define VIDEOS (fgets(buf,BUFSIZE,os),fprintf(stdout,"%s",buf))
+#define VIDEOS (fprintf(stdout,"%s",__SM_READLINE))
 #else
-#define VIDEOS fgets(buf,BUFSIZE,os)
+#define VIDEOS (__SM_READLINE)
 #endif
 
 #define isbd(ch) (*((int*)ch)==*((int*)"<BD>"))

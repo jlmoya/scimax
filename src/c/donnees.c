@@ -182,12 +182,17 @@ void CANCEL (void)
   Putc ('\n', is);
   fflush (is);
   do VIDEOS;
-  while (!iseo (buf));
+  while (!iseo (buf) && !isbs (buf)); /* isbs: EOF/child-death escape (see maxsci1.h) */
 }
 
 int detecteErreurs (void)
 {
-  char a, b, c, d, e;
+  /* macOS/2027 port (Task 12): initialized -- when the scan loop stops on
+     a line whose test short-circuits BEFORE some of these assignments
+     (e.g. an "<EO>" line stops evaluation before e=!isbd() ever runs),
+     the corresponding flags used to be read UNINITIALIZED below, which
+     could take a random error branch. 1 == "marker not seen". */
+  char a = 1, b = 1, c = 1, d = 1, e = 1;
 
   do VIDEOS;
   while (!isbo (buf) && (a=!isbe (buf)) && (b=!isbq (buf)) && (c=!isbs (buf)) && (d=!isbc (buf)) && !iseo (buf) && (e=!isbd (buf)));
@@ -195,8 +200,8 @@ int detecteErreurs (void)
   if (!a)
     {
       Scierror (9999, "Maxima error :\n");
-      while ((VIDEOS, !isee (buf)))
-	sciprint (buf);
+      while ((VIDEOS, !isee (buf) && !isbs (buf)))
+	sciprint ("%s", buf); /* buf is data, not a format string */
       VIDEOS;
       return -1;
     }
@@ -215,7 +220,7 @@ int detecteErreurs (void)
   if (!d)
     {
       sciprint ("Creating function in Maxima...\r\n");
-      while ((VIDEOS, !isbo (buf)));
+      while ((VIDEOS, !isbo (buf) && !isbs (buf))); /* isbs: EOF escape */
       return 0;
     }
   if (!e)
@@ -233,6 +238,6 @@ void gererQuestion (void)
   sciprint ("\n? Maxima Question\n");
   sciprint ("   * To answer use the function answer('your answer')\n");
   sciprint ("   * If you don't want to answer use the function noanswer\n\n");
-  while ((VIDEOS, !iseq (buf)))
+  while ((VIDEOS, !iseq (buf) && !isbs (buf))) /* isbs: EOF escape */
     sciprint("%s", buf);
 }

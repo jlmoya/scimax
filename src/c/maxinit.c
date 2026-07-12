@@ -21,7 +21,7 @@
 #include "api_scilab.h"
 #ifndef _MSC_VER
 #include <unistd.h>
-#include <util.h>
+#include <signal.h>
 #else
 void C2F(getenvc)(int *ierr,char *var,char *buf,int *buflen,int *iflag);
 int SpawnPipe(char *argv[], void **istream, void **ostream);
@@ -52,8 +52,6 @@ int maxinit ()
 	#ifndef _MSC_VER
   int pipesm[2];
   int pipems[2];
-  unsigned char echec = 0;
-  char * scimax, * maxima_init;
   char * path = getenv ("SCIMAX_TOOLBOX_PATH");
   /* macOS/2027 port (Task 12): execlp("maxima",...) (bare name, PATH search)
      reliably failed here with "Error in launching Maxima" in this
@@ -66,21 +64,59 @@ int maxinit ()
   char * maxima_exe = getenv ("MAXIMA_EXE_PATH");
   if (maxima_exe == NULL || maxima_exe[0] == '\0')
     maxima_exe = "maxima";
-      
+
+  if (path == NULL || path[0] == '\0')
+    {
+      /* set by etc/SciMax.start; without it neither loader.lisp nor the
+	 maxima-init files below can be located (and %s would be passed
+	 NULL) */
+      Scierror (9999, "SciMax: SCIMAX_TOOLBOX_PATH is not set\r\n");
+      return 1;
+    }
+
   if (!max_is_ok)
     {
       sciprint ("Launching Maxima :\n");
-      /* macOS/2027 port (Task 12): a PTY was tried here instead of a plain
-	 pipe (this Maxima/SBCL fully-buffers its stdout on a pipe instead of
-	 line-buffering, delaying the handshake response by 40+ seconds --
-	 see below); openpty()'s slave, dup2()'d over stdin/stdout/stderr,
-	 reproducibly broke the PARENT Scilab session's own console
-	 ("Cannot access to the term attributes: Operation not supported by
-	 device", confirmed by isolated reproduction) even though the pty
-	 slave lives only in the forked child. Reverted to the plain pipe;
-	 the buffering delay is real but bounded (see the sciprint below and
-	 the smoke file/report note) rather than trading it for a broken
-	 session. */
+      /* macOS/2027 port (Task 12): the child talks over PLAIN PIPES, on
+	 purpose. This Maxima/SBCL full-buffers its stdout when it is not a
+	 tty, which used to strand every response (the whole handshake) in
+	 the child's stdio buffer indefinitely; a PTY was tried to force
+	 line buffering, and openpty()'s slave, dup2()'d over
+	 stdin/stdout/stderr, reproducibly broke the PARENT Scilab
+	 session's own console ("Cannot access to the term attributes:
+	 Operation not supported by device", confirmed by isolated
+	 reproduction) even though the pty slave lives only in the forked
+	 child. That attempt was reverted, and the buffering is now solved
+	 on the LISP side instead: src/lisp/loader.lisp installs a
+	 main-prompt that (finish-output)s right after printing the
+	 "\n<EO>\n" frame terminator, i.e. the subprocess flushes each
+	 complete response at exactly the moment it is ready for the next
+	 command. Nothing here may ever touch this process's own stdio or
+	 controlling terminal. */
+      if (access (maxima_exe, X_OK) != 0 && strchr (maxima_exe, '/') != NULL)
+	{
+	  /* Loud, parent-side gate: MAXIMA_EXE_PATH (etc/SciMax.start) is
+	     an absolute path in practice, so a missing/renamed Maxima is
+	     caught here before any fork -- "verified means runnable here".
+	     A bare command name (unset MAXIMA_EXE_PATH) is left to the
+	     child's execlp() PATH search below. */
+	  Scierror (9999, "SciMax: Maxima executable '%s' not found or not executable\r\n", maxima_exe);
+	  return 1;
+	}
+      {
+	/* Same loud parent-side gate for loader.lisp: if it is missing,
+	   the load() error below would come from Maxima's STOCK error
+	   reporter (scimax.lisp's marker-emitting merror is not loaded
+	   yet, nor is the <EO>-printing main-prompt), i.e. no marker line
+	   would ever arrive and the step-1 drain would hang. */
+	char ldr[1024];
+	snprintf (ldr, sizeof ldr, "%s/src/lisp/loader.lisp", path);
+	if (access (ldr, R_OK) != 0)
+	  {
+	    Scierror (9999, "SciMax: '%s' not found\r\n", ldr);
+	    return 1;
+	  }
+      }
       if (pipe (pipesm) || pipe (pipems))
 	{
 	  Scierror (9999, "Error in creating pipe\r\n");
@@ -103,52 +139,75 @@ int maxinit ()
 	     ...>") before it ever reads a command from the pipe; loading the
 	     exact same file via a plain load(...) call over the pipe, after
 	     Maxima finishes its own normal (non-'-p') startup, does not. So
-	     -p is dropped entirely here, and loader.lisp is loaded as the
-	     first step of the SAME post-fork stdin command that already
-	     loads maxima-init.mac/linearalgebra/nchrpl/mathml below --
-	     load() transparently dispatches on extension (.lisp vs .mac),
-	     exactly like the existing maxima-init.mac load already did. */
-	  if (execlp (maxima_exe, "maxima",
-		      "--disable-readline",
-		      "--very-quiet", NULL) == -1)
-	    {
-	      Scierror (9999, "Error in launching Maxima\r\n");
-	      echec = 1;
-	      return 1;
-	    }
+	     -p is dropped entirely here and loader.lisp is loaded over the
+	     pipe instead, as its own dedicated first command -- see the
+	     two-step handshake in the parent branch below. */
+	  execlp (maxima_exe, "maxima",
+		  "--disable-readline",
+		  "--very-quiet", NULL);
+	  /* exec only returns on failure. This is a FORKED CHILD of the
+	     whole Scilab/JVM process: the old "Scierror(...); return 1"
+	     here let a broken second Scilab limp on inside the fork.
+	     _exit() immediately instead (no atexit/JVM teardown); the
+	     parent's reader then sees EOF on the pipe, which the hardened
+	     VIDEOS macro (maxsci1.h) turns into a loud "<BS>" protocol
+	     error rather than a hang. */
+	  _exit (127);
 	}
-      else if (pid < (pid_t)0) 
+      else if (pid < (pid_t)0)
 	{
 	  Scierror (9999, "Error in forking\r\n");
 	  return 1;
 	}
-      else if (!echec)
+      else
 	{
 	  close (pipems[1]);
 	  close (pipesm[0]);
 	  is = fdopen (pipesm[1], "w");
 	  os = fdopen (pipems[0], "r");
-	  /* macOS/2027 port (Task 12): the original called detecteErreurs()
-	     here first (waiting for a ready signal) before sending this
-	     command. With -p gone (see above), Maxima hasn't loaded
-	     scimax.lisp yet at this point in the stream, so main-prompt is
-	     still Maxima's own stock prompt, not the <BO>/<BE>/... markers
-	     detecteErreurs() looks for -- calling it here would misparse
-	     that stock prompt. Matches the working isolated reproduction,
-	     which sent this combined command immediately after Maxima
-	     started, with no separate wait-for-ready step; recupResult()
-	     below already calls detecteErreurs() itself as its first step
-	     against THIS command's actual response, once main-prompt has
-	     been redefined by the load() of loader.lisp/scimax.lisp that is
-	     now this command's own first clause (replacing -p). load()
-	     dispatches on extension, so a raw .lisp file works exactly like
-	     the existing maxima-init.mac load beside it. */
-	  fprintf (is, "_((load(\"%s/src/lisp/loader.lisp\"),file_search_maxima:append(file_search_maxima,[\"%s/maxima_init\"]),load(\"%s/maxima-init/maxima-init.mac\"),load(\"%s/maxima-init/maxima-init.lisp\"),load(linearalgebra),load(nchrpl),load(mathml)))$\n", path, path, path, path);
+	  /* macOS/2027 port (Task 12): two-step handshake, restoring the
+	     protocol structure upstream got from "-p loader.lisp" (which
+	     this Maxima/SBCL crashes on when stdin is a pipe -- see the
+	     comment at execlp above).
+
+	     Step 1: load loader.lisp as a PLAIN maxima command, then wait
+	     for the first "<EO>" prompt. This must not be part of the
+	     framed "_((...))" command: $_ is only defmspec'd once
+	     scimax.lisp is loaded, so a combined "_((load(loader),...))"
+	     dispatches as an unknown-function noun form -- the loads run,
+	     but no "<BO>E" frame is ever printed and the old
+	     recupResult(1) handshake blocked forever waiting for one
+	     (confirmed byte-level in an isolated pipe run). Once
+	     loader.lisp is in, main-prompt prints "<EO>" and flushes
+	     (see src/lisp/loader.lisp), so this drain terminates; the
+	     load's own informational lines are skipped, "<BD>" (scimath/
+	     scimax unloadable) and "<BS>" (EOF on the pipe, i.e. the
+	     child died -- injected by VIDEOS in maxsci1.h) fail loudly.
+
+	     Step 2: only now send the framed init command (share
+	     packages + user init files) and parse its "<BO>E" response
+	     with the stock recupResult(1), exactly like every later
+	     command. */
+	  fprintf (is, "load(\"%s/src/lisp/loader.lisp\")$\n", path);
+	  fflush (is);
+	  do VIDEOS;
+	  while (!iseo (buf) && !isbd (buf) && !isbs (buf));
+	  if (!iseo (buf))
+	    {
+	      Scierror (9999, isbd (buf)
+			? "SciMax: Maxima started but could not load scimax/scimath (see src/lisp/README)\r\n"
+			: "SciMax: Maxima exited during startup\r\n");
+	      kill (pid, SIGKILL);
+	      fclose (is);
+	      fclose (os);
+	      return 1;
+	    }
+	  fprintf (is, "_((file_search_maxima:append(file_search_maxima,[\"%s/maxima_init\"]),load(\"%s/maxima-init/maxima-init.mac\"),load(\"%s/maxima-init/maxima-init.lisp\"),load(linearalgebra),load(nchrpl),load(mathml)))$\n", path, path, path);
 	  fflush (is);
 	  if (recupResult (1) == -1)
 	    {
 	      max_is_ok = 1;
-	      sciprint ("Maybe you should get the package maxima-share\n"); 
+	      sciprint ("Maybe you should get the package maxima-share\n");
 	      maxkill ();
 	    }
 	  else

@@ -37,7 +37,7 @@ sci_noanswer (fname, _pvApiCtx)
   kill (pid, SIGINT);
   #endif
   do VIDEOS;
-  while (iseo (buf) == 0);
+  while (iseo (buf) == 0 && !isbs (buf)); /* isbs: EOF escape (maxsci1.h) */
 
   LhsVar (1) = 0;
   return 0;
