@@ -19,12 +19,15 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include "maxsci1.h"
 #include "maxsci.h"
+
+/* macOS/2027 port (Task 12): see gestionVar.c/donnees.c for why Top/Lstk are
+   shims (maxsci1.h) and C2F(intersci) bookkeeping was dropped -- it was
+   write-only (never read back anywhere in this toolbox). */
 
 extern void envoiDonnees (void);
 extern int gestionVar (int);
@@ -36,21 +39,18 @@ maxevalf (pos, stri)
      int pos;
      char *stri;
 {
-  int i, k, t, lr;
-  
+  int i, k, lr;
+
   G_nb.vars = 0;
   G_nb.appels = 0;
-  
+
   fprintf (is, "_(%s(", stri);
-  
+
   for (i = 2 + Top - Rhs; i <= Top; i++)
     {
       lr = *Lstk (i);
       k = gestionVar (lr);
-      t = i - 1;
-      C2F(intersci).ntypes[t] = '$';
-      C2F(intersci).iwhere[t] = lr;
-      
+
       if (k == -1)
 	{
 	  CANCEL ();

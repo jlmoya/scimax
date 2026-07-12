@@ -19,19 +19,21 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
 extern int maxevalf (int, char *);
-extern int creerSym (int, char *, char **, int, int, char);
+extern int creerSym (char *, char **, int, int, char);
 
 int
-sci_maxevalf (fname)
+sci_maxevalf (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
-  static int l, m, n;
-  int pos;
+  static int n;
+  int *piAddr = NULL;
+  char *funcname = NULL;
 
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");
@@ -44,18 +46,23 @@ sci_maxevalf (fname)
     }
 
   CheckLhs (1, 1) ;
-  
-  GetRhsVar (1, SD, &m, &n, &l);
-  
-  n = maxevalf (1, cstk (l));
-  if (n == -1 || n == 1)
+
+  if (__sm_err (getVarAddressFromPosition (pvApiCtx, 1, &piAddr)) || getAllocatedSingleString (pvApiCtx, piAddr, &funcname))
     {
-      creerSym (1, "nil", NULL, 3, 1, 'M');
-      LhsVar (1) = 1;
+      Scierror (9999, "SciMax: expecting the Maxima function name as a string\n");
       return -1;
     }
-    
-  LhsVar (1) = 1; 
+
+  n = maxevalf (1, funcname);
+  freeAllocatedSingleString (funcname);
+  if (n == -1 || n == 1)
+    {
+      creerSym ("nil", NULL, 3, 1, 'M');
+      LhsVar (1) = Rhs + 1;
+      return -1;
+    }
+
+  LhsVar (1) = Rhs + 1;
   return 0;
 }
 

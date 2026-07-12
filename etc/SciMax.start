@@ -24,11 +24,13 @@ mpath=strsubst(here','\','/')+'/../'
 
 setenv('SCIMAX_TOOLBOX_PATH',mpath)
 
+// macOS/2027 port (Task 12): the Overload Toolbox is a separate, optional
+// helper (not installed here) -- SciMax's own sym-type operator overloads
+// below (newfun on maxadd/maxpow/...) do not need it. Degrade gracefully
+// instead of the original abort; a genuine install still gets loaded.
 exec(here+'Overload_TB_path.sce',-1)
 if fileinfo(Overload_TB_path)==[] then
-  printf('You need to install the Overload Toolbox or give the correct path in file ./etc/Overload_TB_path.sce\n')
-  clear mpath Overload_TB_path
-  abort
+  printf('Overload Toolbox not found; continuing without it (SciMax''s own overloads do not need it).\n')
 else
   exec(Overload_TB_path,-1)
 end
@@ -45,7 +47,19 @@ end
 
 printf('\nLoading Maxima library : ')
 
-functions=['maxinit';'maxkill';'maxevalf';'maxevalfl';'%sym_p';'sym';'Matrix';'symnp';'defmf';'Syms';'latex';'mathml';'answer';'noanswer';'maxadd';'maxpow';'maxmul';'maxdiv';'maxsub';'maxbs';'maxpmul';'maxpdiv';'maxpbs';'maxppow';'maxfb';'maxkp';'maxlow';'maxleq';'maxgreat';'maxgeq';'maxneq';'maxeq';'maxaff']
+// macOS/2027 port (Task 12): the original registered these last 19 slots
+// under friendly aliases ('maxadd'..'maxaff', matching src/c/maxsci-level
+// naming) rather than the build-time table names src/c/builder_c.sce
+// actually compiled them under ('maxevalopA'..'maxevalopS', all pointing at
+// the same C function sci_maxevalop -- see maxevalop.c's determineOp(),
+// which reads the INVOKED name's 10th character to tell the 19 operators
+// apart). That worked under the old addinter/funptr, which resolved by
+// build-time table POSITION; confirmed by isolated reproduction that this
+// build's addinter no longer binds repeated-C-function name aliases that
+// way (exists('maxadd') stayed false after addinter even though the call
+// "succeeded"; exists('maxevalopA'..'S') all resolve). Register under the
+// literal build-time names instead, and alias from THOSE below.
+functions=['maxinit';'maxkill';'maxevalf';'maxevalfl';'%sym_p';'sym';'Matrix';'symnp';'defmf';'Syms';'latex';'mathml';'answer';'noanswer';'maxevalopA';'maxevalopB';'maxevalopC';'maxevalopD';'maxevalopE';'maxevalopF';'maxevalopG';'maxevalopH';'maxevalopI';'maxevalopJ';'maxevalopK';'maxevalopL';'maxevalopM';'maxevalopN';'maxevalopO';'maxevalopP';'maxevalopQ';'maxevalopR';'maxevalopS']
 
 if or(link()=='libmaxima') then
   printf('The file libmaxima is already loaded. Try to unload it with ulink.\n');
@@ -61,13 +75,21 @@ else
 end
 addinter(LIBPATHNAME,ENTRYLIB,functions)
 
+// macOS/2027 port (Task 12): the next few lines used funptr()/intppty() --
+// both very old Fortran-interface plumbing -- to flip newfun-registered
+// primitives (maxadd/maxpow/... below) to pass-by-reference. funptr('sin')
+// no longer returns a plain comparable number in this build ("Undefined
+// operation for the given operands" on the '<' below), and intppty() itself
+// is not meant to be called on this build's primitives at all -- guarded
+// out entirely rather than guessed at; the op-overload smoke (x^2 below,
+// via newfun) passing means this was not actually load-bearing here.
 //La ligne suivante permet que le passage des parametres se fasse par reference
 //plutot que par valeur
-if funptr('sin') < 1000 then
-  intppty(floor(funptr('maxinit')/100));
-else
-  intppty(floor(funptr('maxinit')/1000));
-end
+//if funptr('sin') < 1000 then
+//  intppty(floor(funptr('maxinit')/100));
+//else
+//  intppty(floor(funptr('maxinit')/1000));
+//end
 
 //Les types suivants sont geres en interne
 types_geres=['c','i','p','s','sym']
@@ -76,28 +98,53 @@ types_geres=['c','i','p','s','sym']
 //Par exemple, %sym_a_s est une copie du pointeur vers maxadd, ce mecanisme
 //est preferable a la creation d'une macro car le passage des param se fera
 //par reference ce qui evite une copie locale des param.
-op_maxfun=[['a' 'maxadd'];['p' 'maxpow'];['m' 'maxmul'];['r' 'maxdiv'];['s' 'maxsub'];['l' 'maxbs'];['x' 'maxpmul'];['d' 'maxpdiv'];['q' 'maxpbs'];['j' 'maxppow'];['v' 'maxfb'];['k' 'maxkp'];['1' 'maxlow'];['3' 'maxleq'];['2' 'maxgreat'];['4' 'maxgeq'];['o' 'maxeq'];['n' 'maxneq'];['b' 'maxaff']]
+// macOS/2027 port (Task 12): 2nd column now names the literal registered
+// primitive (maxevalopA..S, see `functions` above) instead of the old
+// friendly alias -- each letter here is matched to its build-time slot via
+// maxevalop.c's determineOp(stri[9]-65) against operateurs.h's __ADD.._AFFECT
+// order (A=__ADD=0 ... S=__AFFECT=18); 'o'/'n' (eq/neq) intentionally map to
+// R/Q, not O/N -- __EQ=17=R and __NEQ=16=Q, not positionally A-for-a.
+op_maxfun=[['a' 'maxevalopA'];['p' 'maxevalopB'];['m' 'maxevalopC'];['r' 'maxevalopD'];['s' 'maxevalopE'];['l' 'maxevalopF'];['x' 'maxevalopG'];['d' 'maxevalopH'];['q' 'maxevalopI'];['j' 'maxevalopJ'];['v' 'maxevalopK'];['k' 'maxevalopL'];['1' 'maxevalopM'];['3' 'maxevalopN'];['2' 'maxevalopO'];['4' 'maxevalopP'];['o' 'maxevalopR'];['n' 'maxevalopQ'];['b' 'maxevalopS']]
 
 [m,n]=size(op_maxfun)
 
+// macOS/2027 port (Task 12): newfun(alias, existing_fn_ptr_as_int) is gone --
+// modern newfun (modules/core/sci_gateway/cpp/sci_newfun.cpp) takes TWO
+// STRINGS, newfun(alias_name, existing_name), and looks the existing
+// function up by name via the symbol context instead of a numeric
+// pointer/index (confirmed from source: the .xml help text describing a
+// numeric 2nd argument is stale). op_maxfun(j,2) is already the target
+// primitive's plain name (e.g. 'maxadd'), so funptr() is simply dropped.
 for i=types_geres,
   for j=1:m,
-    newfun('%sym_'+op_maxfun(j,1)+'_'+i,funptr(op_maxfun(j,2)))
-    if ((i ~= 'sym')&(op_maxfun(j,2) ~= 'maxaff')),
-      newfun('%'+i+'_'+op_maxfun(j,1)+'_sym',funptr(op_maxfun(j,2)))
+    newfun('%sym_'+op_maxfun(j,1)+'_'+i, op_maxfun(j,2))
+    if ((i ~= 'sym')&(op_maxfun(j,2) ~= 'maxevalopS')),
+      newfun('%'+i+'_'+op_maxfun(j,1)+'_sym', op_maxfun(j,2))
     end
   end
 end;
 
-SciMax_maxfunlib=lib(mpath+'macros/maxfun/genmaxfun/')
+// macOS/2027 port (Task 12): macros/maxfun/genmaxfun/ is a BUILD-TIME
+// generated tree (one convenience macro per known Maxima function, e.g.
+// expand/factor/solve -- see macros/maxfun/buildmaxfun.sce) that is
+// produced by running buildmaxfun.sce separately from the normal
+// builder.sce flow, and never has been for this install. Those macros are
+// pure sugar over maxevalf()/maxevalfl() (which this port's gateway
+// registers unconditionally just above); load them if present, skip
+// gracefully otherwise -- same reasoning for personnalizedOverload.sce,
+// which calls the (equally absent) Overload Toolbox's overload() function.
+if isdir(mpath+'macros/maxfun/genmaxfun/') then
+  SciMax_maxfunlib=lib(mpath+'macros/maxfun/genmaxfun/')
+  if fileinfo(mpath+'macros/maxfun/personnalizedOverload.sce')==[] then
+    exec(mpath+'macros/maxfun/genmaxfun/overload.sce',-1)
+  else
+    exec(mpath+'macros/maxfun/personnalizedOverload.sce',-1)
+  end
+else
+  printf('macros/maxfun/genmaxfun not built; skipping the generated Maxima-function convenience macros (use maxevalf/maxevalfl directly).\n')
+end
 SciMax_percentlib=lib(mpath+'macros/percent/')
 SciMaxlib=lib(mpath+'macros/')
-
-if fileinfo(mpath+'macros/maxfun/personnalizedOverload.sce')==[] then
-  exec(mpath+'macros/maxfun/genmaxfun/overload.sce',-1)
-else
-  exec(mpath+'macros/maxfun/personnalizedOverload.sce',-1)
-end
 
 
 //add help chapter

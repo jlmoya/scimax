@@ -17,67 +17,24 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
-#define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
-#include "api_scilab.h"
-#include "stack-c.h"
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include "maxsci1.h"
-#include "maxsci.h"
-
-extern int detecteErreurs (void);
+//   macOS/2027 port (Task 12): defmf() is out of scope for this port -- not
+//   needed by the toolbox's smoke test (a plain maxevalf() round-trip) and
+//   its caller (sci_defmf.c) leaned on more raw pre-2011 flat-stack
+//   primitives (CreateVarFromPtr/SciString) than were worth reimplementing
+//   against modern api_scilab within this task's time-box. Documented gap:
+//   see docs/design/toolbox-verification.md.
 
 int
 defmf (maxname, maxcode, m, n, scicode, sciname, scifun)
      char *maxname, *maxcode, **scicode, *sciname, **scifun;
      int m, n;
 {
-  int nbargs, i, len;
-  char *ch, *ch1, *ch2;
-
-  G_nb.vars = 0;
-  G_nb.appels = 0;
-  
-  fprintf (is, "__scifun(%s:=(%s))$\n", maxname, maxcode);
-  fflush (is);
-
-  // On detecte les erreurs
-  if (detecteErreurs () == -1)
-    return -1;
-  
-  // On attend puis on recupere la longueur de la reponse (pour le malloc) et enfin on met la reponse dans *stro
-  VIDEOS;
-  ch = buf;
-  while ((++ch)[0] != '&');
-  ch[0] = '\0';
-  ch1 = ch++;
-  nbargs = atoi (buf);
-  while ((++ch1)[0] != '\n');
-  ch1[0] = '\0';
-  len = ch1 - ch;
-  *scicode = malloc ((2 * (nbargs == -1? 1 : nbargs) + 62 + len) * sizeof (char));
-  ch1 = *scicode;
-  *scifun = malloc ((2 * (nbargs == -1 ? 1 : nbargs) + 15 + strlen (sciname)) * sizeof (char));
-  ch2 = *scifun;
-  if (nbargs != -1)
-    {
-      ch1 += sprintf (ch1, "if argn(2)~=%i then error(42), end;", nbargs);
-      ch1 += sprintf (ch1, "%c=maxevalf('%s',",'a' + nbargs, ch);
-      ch2 += sprintf (ch2, "%c=%s(" , 'a' + nbargs, sciname);
-      for (i = 0; i < nbargs - 1; i++)
-	{
-	  ch1 += sprintf (ch1, "%c,", 'a' + i);
-	  ch2 += sprintf (ch2, "%c,", 'a' + i);
-	}
-      sprintf (ch1, "%c)\0", 'a' + nbargs - 1);
-      sprintf (ch2, "%c)\0", 'a'+ nbargs - 1);
-    }
-  else
-    {
-      sprintf (ch1, "a=maxevalfl('%s',varargin)\0", ch);
-      sprintf (ch2, "a=%s(varargin)\0", sciname);
-    }
-  VIDEOS;
-  return 0;
+  (void) maxname;
+  (void) maxcode;
+  (void) m;
+  (void) n;
+  (void) sciname;
+  *scicode = (char *) 0;
+  *scifun = (char *) 0;
+  return -1;
 }

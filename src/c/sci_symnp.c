@@ -19,18 +19,19 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
 extern int symnp (int);
-extern int creerSym (int, char *, char **, int, int, char);
+extern int creerSym (char *, char **, int, int, char);
 
 int
-sci_symnp (fname)
+sci_symnp (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
   static int n;
 
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");
@@ -44,15 +45,15 @@ sci_symnp (fname)
 
   CheckLhs (1, 1);
   CheckRhs (1, 1);
-  
+
   n = symnp (1);
   if (n == -1 || n == 1)
     {
-      creerSym (1, "nil", NULL, 3, 1, 'M');
-      LhsVar (1) = 1;
+      creerSym ("nil", NULL, 3, 1, 'M');
+      LhsVar (1) = Rhs + 1;
       return -1;
     }
-     
-  LhsVar (1) = 1;
+
+  LhsVar (1) = Rhs + 1;
   return 0;
 }

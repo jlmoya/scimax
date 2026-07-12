@@ -19,17 +19,19 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <string.h>
+#include "maxsci1.h"
 
 extern void maxkill (void);
 
 int
-sci_maxkill (fname)
+sci_maxkill (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
+  pvApiCtx = _pvApiCtx;
   CheckRhs (0, 0);
-  CheckLhs (1, 1);
+  CheckLhs (0, 1);  /* macOS/2027 port (Task 12): see sci_maxinit.c */
 
   LhsVar (1) = 0;
   maxkill ();

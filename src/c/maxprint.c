@@ -19,19 +19,16 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <stdio.h>
 #include "maxsci1.h"
 #include "maxsci.h"
 
-// a commenter ou decommenter selon version Scilab, la seconde est pour version >=5
-//Scilab 4
-//#include "xsci/x_ptyxP.h"
-//#include "xsci/x_data.h"
-//#define MAXCOLS term->screen.max_col
-//Scilab 5
-//#include "scilines.h"
-#define MAXCOLS getColumnsSize()
+// macOS/2027 port (Task 12): getColumnsSize() (console-width query) is
+// another pre-2011 console API this build no longer ships (adv-cli/-nb runs
+// headless anyway, so there is no real terminal width to query). Maxima's
+// "linel" (line length) just controls its own pretty-printing wrap column;
+// a fixed reasonable width is a fine substitute.
+#define MAXCOLS 80
 
 extern int detecteErreurs (void);
 extern void envoiDonnees (void);
@@ -48,9 +45,7 @@ int maxprint (void)
   fprintf (is, "linel:%i$___(", MAXCOLS);
 
   n = gestionVar (*Lstk (Top));
-  C2F(intersci).ntypes[Top - 1] = '$';
-  C2F(intersci).iwhere[Top - 1] = *Lstk (Top);
-  
+
   if (n == -1)
     {
       CANCEL ();

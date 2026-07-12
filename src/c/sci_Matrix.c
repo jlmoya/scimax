@@ -19,18 +19,19 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
 extern int Matrix (int);
-extern int creerSym (int, char *, char **, int, int, char);
+extern int creerSym (char *, char **, int, int, char);
 
 int
-sci_Matrix (fname)
+sci_Matrix (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
   static int pos, n;
-  
+
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");
@@ -43,15 +44,15 @@ sci_Matrix (fname)
     }
 
   CheckLhs (1, 1);
-  
+
   n = Matrix (1);
   if (n == -1 || n == 1)
     {
-      creerSym (1, "nil", NULL, 3, 1, 'M');
-      LhsVar (1) = 1;
+      creerSym ("nil", NULL, 3, 1, 'M');
+      LhsVar (1) = Rhs + 1;
       return -1;
     }
-  
-  LhsVar (1) = 1;
+
+  LhsVar (1) = Rhs + 1;
   return 0;
 }

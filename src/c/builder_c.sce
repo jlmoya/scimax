@@ -50,7 +50,14 @@ else
   ldflags = '';
 end
 
-ilib_build('maxima',functions,cfuns,[],'Makelib',ldflags,include+' -D__USE_DEPRECATED_STACK_FUNCTIONS__','',%f,'');
+// macOS/2027 port (Task 12): every gateway file here keeps its original
+// K&R-style declarations (no prototypes) -- clang 17+ flags that as
+// -Wdeprecated-non-prototype on ~20 files, and the resulting flood of
+// warning text appears to overrun a fixed-size buffer somewhere in
+// ilib_compile's output relay (matches the project's known scivprint()
+// unbounded-buffer bug class), corrupting the session. Silence the noisy
+// warning class rather than rewriting every K&R declaration to ANSI style.
+ilib_build('maxima',functions,cfuns,[],'Makelib',ldflags,include+' -D__USE_DEPRECATED_STACK_FUNCTIONS__ -Wno-deprecated-non-prototype -Wno-implicit-int','',%f,'');
 
 clear mpath ici functions cfuns include;
 

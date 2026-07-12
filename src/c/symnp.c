@@ -19,7 +19,6 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -30,6 +29,7 @@ extern void envoiDonnees (void);
 extern int detecteErreurs (void);
 extern void CANCEL (void);
 extern int gestionVar (int add);
+extern int recupResult (int pos);
 
 int 
 symnp (pos)
@@ -46,14 +46,10 @@ symnp (pos)
 
   lr = *Lstk (Top);
   k = gestionVar (lr);
-  t = Top - 1;
-  C2F(intersci).ntypes[t] = '$';
-  C2F(intersci).iwhere[t] = lr;
-  
+
   if (k == -1)
     {
       CANCEL ();
-      C2F(overload) (&Top, "symnp", 5);
       return -1;
     }
   Putc (')', is);

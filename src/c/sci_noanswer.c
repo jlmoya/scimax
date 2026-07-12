@@ -19,17 +19,18 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <signal.h>
 #include <sys/types.h>
 #include "maxsci1.h"
 
-int 
-sci_noanswer (fname)
+int
+sci_noanswer (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
+  pvApiCtx = _pvApiCtx;
   CheckRhs (0, 0);
-  CheckLhs (1, 1);
+  CheckLhs (0, 1);  /* macOS/2027 port (Task 12): see sci_maxinit.c */
 
   quest_mode = 0;
   #ifndef _MSC_VER

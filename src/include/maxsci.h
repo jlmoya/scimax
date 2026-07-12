@@ -44,6 +44,21 @@ typedef struct {
   int appels; 
 } Nb;
 
+/* macOS/2027 port (Task 12): this header is included by ~10 .c files, each
+ * of which used to get its OWN definition of these three globals -- legal
+ * under old "common symbol" linking (-fcommon, historically clang/gcc's
+ * default), but clang defaults to -fno-common now, which makes every one
+ * of those extra definitions a hard "duplicate symbol" link error. Apply
+ * the same single-definition-in-maxinit.c pattern maxsci1.h already uses
+ * for its own globals (is/os/max_is_ok/...): maxinit.c #define GLOBAL
+ * before including this header.
+ */
+#ifdef GLOBAL
 Info G_tabvar[MAXVARS];
 Nb G_nb;
 void * G_tabptr[MAXVARS];
+#else
+extern Info G_tabvar[MAXVARS];
+extern Nb G_nb;
+extern void * G_tabptr[MAXVARS];
+#endif

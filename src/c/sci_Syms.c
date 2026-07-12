@@ -19,18 +19,28 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
+#include <ctype.h>
+#include <string.h>
 #include "maxsci1.h"
 
+/* macOS/2027 port (Task 12): Syms x y z used to CreateVar+PutVar each name
+   directly into the caller's stack slots (the raw pre-2011 API). The modern
+   equivalent of "create a value AND bind it to this exact NAME in the
+   caller's scope" is createNamedMList (see creerSymNamed in donnees.c) --
+   GetRhsVar(SMD) is likewise replaced by getAllocatedMatrixOfString. */
+extern int creerSymNamed (const char *, const char *, char);
+
 int
-sci_Syms (fname)
+sci_Syms (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
-  int m, n, i, j, r, inj, pos = Rhs + 1;
+  int m, n, i, j, r, inj;
   char **scivars;
   char *ch;
-  char c;  
-  
+  char c;
+
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");
@@ -42,42 +52,50 @@ sci_Syms (fname)
       return -1;
     }
 
-  CheckLhs (1, 1);
-  
+  CheckLhs (0, 1);  /* macOS/2027 port (Task 12): see sci_maxinit.c -- Syms x is called bare */
+
   for (r = 1; r <= Rhs; r++)
     {
-      GetRhsVar (r, SMD, &m, &n, &scivars);
+      int *piAddr = NULL;
+
+      if (__sm_err (getVarAddressFromPosition (pvApiCtx, r, &piAddr)) ||
+	  getAllocatedMatrixOfString (pvApiCtx, piAddr, &m, &n, &scivars))
+	{
+	  Scierror (9999, "Error : Syms expects string arguments\r\n");
+	  return -1;
+	}
       for (i = 0 ; i < m; i++)
 	{
 	  for (j = 0; j < n; j++)
-	    { 
+	    {
 	      inj = i * n + j;
 	      ch = scivars[inj];
-	      if ((c = (char)(*(ch++))) != '\0' && (isalpha (c) != 0 ||
+	      if ((c = (char)(*(ch++))) != '\0' && (isalpha ((unsigned char) c) != 0 ||
 						    c == '%' || c == '_' ||
 						    c == '#' || c == '!' ||
 						    c == '$' || c == '?'))
 		{
-		  while (((c=(char)(*(ch++))) != '\0') && (isalnum (c) != 0 ||
+		  while (((c=(char)(*(ch++))) != '\0') && (isalnum ((unsigned char) c) != 0 ||
 							   c == '_' || c == '#' ||
 							   c == '!' || c == '$' ||
 							   c == '?'));
 		  if (c != '\0')
 		    {
 		      Scierror (9999, "Error : invalid name for the variable %s\r\n", scivars[inj]);
+		      freeAllocatedMatrixOfString (m, n, scivars);
 		      return -1;
 		    }
 		}
-	      else 
+	      else
 		{
 		  Scierror (9999, "Error : invalid name for the variable %s\r\n", scivars[inj]);
+		  freeAllocatedMatrixOfString (m, n, scivars);
 		  return -1;
 		}
-	      creerSym (pos, scivars[inj], NULL, strlen (scivars[inj]), 1, 'M');
-	      PutVar (pos, scivars[inj]);
-	      ++pos;
+	      creerSymNamed (scivars[inj], scivars[inj], 'M');
 	    }
 	}
+      freeAllocatedMatrixOfString (m, n, scivars);
     }
   LhsVar (1) = 0;
   return 0;

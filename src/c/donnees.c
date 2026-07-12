@@ -17,143 +17,163 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
+//   macOS/2027 port (Task 12): creerSym()/creerSym2()/recupResult() used to
+//   hand-poke a "sym" mlist directly into the raw pre-2011 flat-stack memory
+//   (a precomputed header template `tabSym`, filled in with the Maxima
+//   subprocess's response bytes translated through a custom encoding table
+//   `taba2s`). That memory model and the create/read primitives it needed
+//   (CreateVar/C2F(createdata)/stk/istk/Lstk) no longer exist in this Scilab
+//   build (removed 2015, commit ab2ff6e836a) -- see gestionVar.c for the
+//   send-direction rewrite and the same background.
+//
+//   This is a from-scratch reimplementation of creerSym (build a "sym" mlist
+//   at the next free stack position, i.e. Rhs+1, from an already-decoded C
+//   string) and recupResult (read the Maxima subprocess's response and turn
+//   it into that mlist) against modern api_scilab, using createNamedMList
+//   for Syms's name-injection case. The wire format itself is unchanged and
+//   was re-derived from src/lisp/scimax.lisp's `$_` printer rather than from
+//   the old C reader: a scalar (non-matrix/list/set) Maxima result is framed
+//   as "<BO>E\n<total>\n<raw text, total-3 bytes>", where <raw text> is
+//   printed verbatim (princ) with no escaping, followed by the interpreter's
+//   own "\n<EO>\n" prompt (6 bytes) once it's ready for the next command.
+//   Matrix/list/set Maxima results use a different, multi-line framing this
+//   port does not implement (documented gap, see
+//   docs/design/toolbox-verification.md); recupResult() reports a clean
+//   error for that case instead of mis-parsing raw bytes as if they were the
+//   scalar framing.
+
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 #include "maxsci.h"
 
-int creerSym (int, char *, char **, int, int, char);
-#ifndef _MSC_VER
-#define INLINE inline
-#else
-#define INLINE
-#endif 
-
-INLINE int* creerSym2 (int, int);
-
+int creerSym (char *, char **, int, int, char);
+int creerSymNamed (const char *, const char *, char);
 int recupResult (int);
-void envoiDonnees (void);
 int detecteErreurs (void);
 void gererQuestion (void);
-
-void * G_tabptr[MAXVARS];
-
-const static int taba2s[128] = 
-{ 100,101,102,103,104,105,106,107,108,-40,
-  110,111,112,113,114,115,116,117,118,119,
- 120,121,122,123,124,125,126,127,128,129,
- 130,131, 40, 38,-53, 37, 39, 56, 58, 53,
-  41, 42, 47, 45, 52, 46, 51, 48,  0,  1,
-   2,  3,  4,  5,  6,  7,  8,  9, 44, 43,
-  59, 50, 60,-38,-61,-10,-11,-12,-13,-14,
- -15,-16,-17,-18,-19,-20,-21,-22,-23,-24,
- -25,-26,-27,-28,-29,-30,-31,-32,-33,-34,
- -35, 54, 49, 55, 62, 36,-59, 10, 11, 12,
-  13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-  23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-  33, 34, 35,-54, 57,-55, 61, 127};
-
-const static int tabSym[35] =
- { 17,3,1,9,13,18,10,3,1,0,1,
-   4,5,8,28,34,22,29,27,14,25,
-   0,10,1,1,0,1,2,-22,4,10,1,1,0,1};
- 
 extern void maxkill (void);
 
 int
-creerSym (pos, stro, tabstro, m, n, type)
-     int pos, m, n;
-     char *stro, **tabstro, type;
+creerSym (char *stro, char **tabstro, int m, int n, char type)
 {
-  static int lr;
-  char *tp = &type;
+  int *piAddr = NULL;
+  int pos = Rhs + 1;
+  char typeStr[2];
+  const char *names[3];
+  const char *typeP = typeStr;
 
-  CreateVar (pos, "m", &trois, &un, &lr);
-  CreateListVarFromPtr (pos, 1, SMD, &trois, &un, tabS);
-  CreateListVarFromPtr (pos, 2, SD, &un, &un, &tp);
+  typeStr[0] = type;
+  typeStr[1] = '\0';
+  names[0] = tabS[0];
+  names[1] = tabS[1];
+  names[2] = tabS[2];
+
+  if (__sm_err (createMList (pvApiCtx, pos, 3, &piAddr)))
+    return -1;
+  if (__sm_err (createMatrixOfStringInList (pvApiCtx, pos, piAddr, 1, 1, 3, (char**) names)))
+    return -1;
+  if (__sm_err (createMatrixOfStringInList (pvApiCtx, pos, piAddr, 2, 1, 1, (char**) &typeP)))
+    return -1;
+
   if (tabstro == NULL)
     {
-      CreateListVarFromPtr (pos, 3, SD, &m, &n, &stro);
+      const char *rp = (stro != NULL) ? stro : "";
+      if (__sm_err (createMatrixOfStringInList (pvApiCtx, pos, piAddr, 3, 1, 1, (char**) &rp)))
+	return -1;
     }
   else
     {
-      CreateListVarFromPtr (pos, 3, SMD, &m, &n, tabstro);
+      if (__sm_err (createMatrixOfStringInList (pvApiCtx, pos, piAddr, 3, m, n, (char**) tabstro)))
+	return -1;
     }
-  
   return 0;
 }
 
-INLINE int*
-creerSym2 (pos,taille)
-     int pos, taille;
+/* Used only by sci_Syms.c: create a "sym" whose rep is its own name, bound
+   directly to that NAME in the caller's scope (the modern equivalent of the
+   old CreateVar(pos,...)+PutVar(pos,name) pair -- this is what makes
+   "Syms x y z" declare x, y and z directly rather than returning them). */
+int
+creerSymNamed (const char *name, const char *stro, char type)
 {
-  int i;
-  int *header;
+  int *piAddr = NULL;
+  char typeStr[2];
+  const char *names[3];
+  const char *typeP = typeStr;
+  const char *rp = (stro != NULL) ? stro : "";
 
-  C2F(createdata) (&pos, sizeof (int) * (taille + 34));
-  header = (int*)stk (*Lstk (pos + Top - Rhs));
-  for (i = 0; i < 35; i++)
-    header[i] = tabSym[i];
-  return header;
+  typeStr[0] = type;
+  typeStr[1] = '\0';
+  names[0] = tabS[0];
+  names[1] = tabS[1];
+  names[2] = tabS[2];
+
+  if (__sm_err (createNamedMList (pvApiCtx, name, 3, &piAddr)))
+    return -1;
+  if (__sm_err (createMatrixOfStringInNamedList (pvApiCtx, name, piAddr, 1, 1, 3, (char**) names)))
+    return -1;
+  if (__sm_err (createMatrixOfStringInNamedList (pvApiCtx, name, piAddr, 2, 1, 1, (char**) &typeP)))
+    return -1;
+  if (__sm_err (createMatrixOfStringInNamedList (pvApiCtx, name, piAddr, 3, 1, 1, (char**) &rp)))
+    return -1;
+  return 0;
 }
 
 int
-recupResult (pos)
-     int pos;
+recupResult (int pos)
 {
-  unsigned char tp, c;
-  int len ,total, mn, mn2, *header, *headers;
-  char *str;
-  register int k;
+  unsigned char tp;
+  int total, len, k;
+  char *result;
 
   k = detecteErreurs ();
   if (k == -1 || k == 1)
     return k;
 
   tp = buf[4];
-  
+
   VIDEOS; total = atoi (buf);
-  //Si la chaine de retour est vide, on sort
+  /* total==3 <=> the Maxima-side $_ printer's (length ch) was 0: an empty
+     result. Mirrors the original's "read 2 more (blank) lines and bail". */
   if (total == 3)
     {
       VIDEOS;
       VIDEOS;
       return 1;
-    }  
-  headers = creerSym2 (pos, total);
-  header = headers + 31;
-  if (tp == 'E')
-    {    
-      header[4] = total - 2;
-      mn = 2;
-      mn2 = 4;
-      tp = 'M';
     }
-  else
+
+  if (tp != 'E')
     {
-      VIDEOS; header[0] = atoi (buf);
-      VIDEOS; header[1] = atoi (buf);
-      mn = header[0] * header[1] + 1;
-      mn2 = mn + 2;
-      for (k = 3; k < mn2 + 1;header[k++] = (VIDEOS, atoi (buf)));
+      Scierror (9999, "SciMax (macOS port): matrix/list/set Maxima results are not supported by this build\r\n");
+      maxkill ();
+      return -1;
     }
-  len = header[mn2] + mn2;
-  for (k = mn2 + 1; k < len; k++)
+
+  len = total - 3;
+  result = malloc ((size_t) len + 1);
+  if (result == NULL)
     {
-      c = Getc (os);
-      header[k] = (c<127) ? taba2s[c] : c + 100;
+      Scierror (9999, "SciMax: out of memory\r\n");
+      return -1;
     }
-  
-  headers[5] = 14 + (len>>1);
-  headers[28] = taba2s[tp];
-  
-  // On vide ce qui reste sur l'outputstream
-  for (k = 0; k < 6; k++) Getc (os);
-  return 0;
+  for (k = 0; k < len; k++)
+    result[k] = (char) Getc (os);
+  result[len] = '\0';
+
+  /* drain the trailing "\n<EO>\n" prompt marker so the pipe is clean for
+     the next command (unchanged wire framing, see main-prompt in
+     scimax.lisp) */
+  for (k = 0; k < 6; k++)
+    Getc (os);
+
+  k = creerSym (result, NULL, 1, 1, 'M');
+  free (result);
+  return k;
 }
 
 void CANCEL (void)
@@ -171,7 +191,7 @@ int detecteErreurs (void)
 
   do VIDEOS;
   while (!isbo (buf) && (a=!isbe (buf)) && (b=!isbq (buf)) && (c=!isbs (buf)) && (d=!isbc (buf)) && !iseo (buf) && (e=!isbd (buf)));
-  
+
   if (!a)
     {
       Scierror (9999, "Maxima error :\n");

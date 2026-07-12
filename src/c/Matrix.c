@@ -19,7 +19,6 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -30,6 +29,7 @@ extern void envoiDonnees (void);
 extern int detecteErreurs (void);
 extern void CANCEL (void);
 extern int gestionVar (int);
+extern int recupResult (int);
 
 int
 Matrix (pos)
@@ -48,10 +48,7 @@ Matrix (pos)
     {
       lr = *Lstk (i);
       k = gestionVar (lr);
-      t = i - 1;
-      C2F(intersci).ntypes[t] = '$';
-      C2F(intersci).iwhere[t] = lr;
-      
+
       if (k == -1)
 	{
 	  CANCEL ();

@@ -19,15 +19,16 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
 extern int maxprint (void);
 
-int 
-sci_maxprint (fname)
+int
+sci_maxprint (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");

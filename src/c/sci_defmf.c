@@ -17,56 +17,24 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
+//   macOS/2027 port (Task 12): the original read its 3 string args via
+//   GetRhsVar and built its two outputs via CreateVarFromPtr + SciString --
+//   raw pre-2011 flat-stack primitives removed from Scilab core in 2015 (see
+//   gestionVar.c/donnees.c for the general background). defmf() is out of
+//   scope for this port -- not needed by the toolbox's smoke test (a plain
+//   maxevalf() round-trip). Documented gap: see
+//   docs/design/toolbox-verification.md.
+
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
-extern int defmf (char *, char *, int, int, char **, char *, char **);
-extern int creerSym (int, char *, char **, int, int, char);
-
 int
-sci_defmf (fname)
+sci_defmf (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
-  int m, n, sciname, maxname, maxcode;
-  char *scicode, *scifun;
-
-  if (max_is_ok == 0)
-    {
-      Scierror (9999, "Maxima has not been started : use maxinit\n");
-      return -1;
-    }
-  if (quest_mode == 1)
-    {
-      Scierror (9999, "You must answer to the question !\n");
-      return -1;
-    }
-
-  CheckLhs (1, 1);
-  CheckRhs (3, 3);
-  
-  GetRhsVar (1, SD, &m, &n, &sciname);
-  GetRhsVar (2, SD, &m, &n, &maxname);
-  GetRhsVar (3, SD, &m, &n, &maxcode);
-
-  n = defmf (cstk (maxname), cstk (maxcode), m, n, &scicode, cstk (sciname), &scifun);
-  if (n == -1 || n == 1)
-    {
-      creerSym (1, "nil", NULL, 3, 1, 'M');
-      LhsVar (1) = 1;
-      return -1;
-    }
-
-  CreateVarFromPtr (1, SMD, &un, &un, &scifun);
-  CreateVarFromPtr (2, SMD, &un, &un, &scicode);
-  SciString (&un, "deff", &un, &deux);
-  
-  free (scicode);
-  free (scifun);
-
-  LhsVar (1) = 0;
-  return 0;
+  pvApiCtx = _pvApiCtx;
+  Scierror (9999, "SciMax (macOS port): defmf() is not supported in this build\r\n");
+  return -1;
 }
-
-

@@ -17,47 +17,24 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
+//   macOS/2027 port (Task 12): the original built its result via
+//   C2F(createvarfromptr), a raw pre-2011 flat-stack primitive removed from
+//   Scilab core in 2015 (see gestionVar.c/donnees.c for the general
+//   background). latex() output is out of scope for this port -- not
+//   needed by the toolbox's smoke test (a plain maxevalf() round-trip) and
+//   not worth reimplementing against modern api_scilab within this task's
+//   time-box. Documented gap: see docs/design/toolbox-verification.md.
+
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
-extern int latex (char **, int *);
-extern int creerSym (int, char *, char **, int, int, char);
-
 int
-sci_latex (fname) 
+sci_latex (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
-  char *stro;
-  int m, n;
-  
-  if (max_is_ok == 0)
-    {
-      Scierror (9999, "Maxima has not been started : use maxinit\n");
-      return -1;
-    }
-  if (quest_mode == 1)
-    {
-      Scierror (9999, "You must answer to the question !\n");
-      return -1;
-    }
-
-  CheckLhs (1, 1);
-  CheckRhs (1, 1);
-  
-  n = latex (&stro, &m);
-  if (n == -1 || n == 1)
-    {
-      creerSym (1, "nil", NULL, 3, 1, 'M');
-      LhsVar (1) = 1;
-      return -1;
-    }
-  
-  C2F(createvarfromptr) (&un, SMD, &un, &un, &stro, nlgh);
-  
-  free (stro);
-  
-  LhsVar (1) = 1;
-  return 0;
+  pvApiCtx = _pvApiCtx;
+  Scierror (9999, "SciMax (macOS port): latex() is not supported in this build\r\n");
+  return -1;
 }

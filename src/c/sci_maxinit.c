@@ -19,20 +19,25 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <string.h>
 #include "maxsci1.h"
 
 extern int maxinit (void);
 
 int
-sci_maxinit (fname)
+sci_maxinit (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
   int m, n, path;
 
+  pvApiCtx = _pvApiCtx;
   CheckRhs (0, 0) ;
-  CheckLhs (1, 1) ;
+  /* macOS/2027 port (Task 12): the demo/docs call this bare ("maxinit()",
+     0 outputs, matching LhsVar(1)=0 below); CheckLhs(1,1) rejected that
+     with "Wrong number of output argument(s): 1 expected" (confirmed by
+     the smoke test), so widen to allow 0. */
+  CheckLhs (0, 1) ;
 
   LhsVar (1) = 0;
   return maxinit ();

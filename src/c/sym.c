@@ -19,7 +19,6 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -35,21 +34,18 @@ int sym (pos)
      int pos;
 {
   int k;
-  
+
   G_nb.vars = 0;
   G_nb.appels = 0;
-  
+
   Putc ('_', is);
   Putc ('(', is);
 
   k = gestionVar (*Lstk (Top));
-  C2F(intersci).ntypes[Top - 1] = '$';
-  C2F(intersci).iwhere[Top - 1] = *Lstk (Top);
-  
+
   if (k == -1)
     {
       CANCEL ();
-      C2F(overload) (&Top, "sym", 3);
       return -1;
     }
   

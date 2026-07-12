@@ -19,17 +19,19 @@
 
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
 #include "maxsci1.h"
 
 extern int recupResult (int);
 
 int
-sci_answer (fname)
+sci_answer (fname, _pvApiCtx)
      char *fname;
+     void *_pvApiCtx;
 {
-  static int l, m, n;
+  int *piAddr = NULL;
+  char *answerStr = NULL;
 
+  pvApiCtx = _pvApiCtx;
   if (max_is_ok == 0)
     {
       Scierror (9999, "Maxima has not been started : use maxinit\n");
@@ -43,12 +45,17 @@ sci_answer (fname)
 
   CheckLhs (1, 1);
   CheckRhs (1, 1);
-  
-  GetRhsVar (1, SD, &m, &n, &l);
-  
-  fprintf (is, "%s$\n", cstk (l));
+
+  if (__sm_err (getVarAddressFromPosition (pvApiCtx, 1, &piAddr)) || getAllocatedSingleString (pvApiCtx, piAddr, &answerStr))
+    {
+      Scierror (9999, "SciMax: expecting a string answer\n");
+      return -1;
+    }
+
+  fprintf (is, "%s$\n", answerStr);
   fflush (is);
-  
+  freeAllocatedSingleString (answerStr);
+
   if (recupResult (1) == 1)
     {
       LhsVar (1) = 0;
@@ -57,7 +64,7 @@ sci_answer (fname)
   
   quest_mode = 0;
 
-  LhsVar (1) = 1;
+  LhsVar (1) = Rhs + 1;
   return 0;
 }
   

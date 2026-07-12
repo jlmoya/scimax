@@ -17,9 +17,16 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
+//   macOS/2027 port (Task 12): see gestionVar.c/donnees.c for the general
+//   background (raw flat-stack API removed from core in 2015). This file's
+//   own raw-memory use was determineOp()'s scalar-vs-matrix size probe
+//   (istk(iadr(*Lstk(...)))), reimplemented below via api_scilab dimension
+//   queries. C2F(intersci) bookkeeping was dropped -- write-only, never read
+//   back anywhere in this toolbox.
+
 #define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
 #include "api_scilab.h"
-#include "stack-c.h"
+#include "sci_types.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -32,55 +39,54 @@ extern void envoiDonnees (void);
 extern void CANCEL (void);
 extern int recupResult (int);
 
-#ifndef _MSC_VER
-#define INLINE inline
-#else
-#define INLINE
-#endif 
+/* macOS/2027 port (Task 12): bare C99 "inline" (no "static") does not
+ * guarantee an out-of-line definition gets emitted anywhere -- if the single
+ * call site below isn't actually inlined (e.g. no optimization), the call
+ * is left referencing an external "_determineOp" symbol that was never
+ * defined, and addinter's dlopen() fails at load time with "symbol not
+ * found in flat namespace" (confirmed by isolated reproduction). "static"
+ * sidesteps the whole ambiguity: always a real, locally-linked function.
+ */
+#define INLINE static
 
 INLINE void determineOp (char);
+static int sm_opSize (int);
 
 int
 maxevalop (pos, stri)
      int pos;
      char *stri;
 {
-  int k, t, lr;
+  int k, lr;
 
   G_nb.vars = 0;
   G_nb.appels = 0;
-  
+
   Putc ('_', is);
   Putc ('(', is);
-  
+
   lr = *Lstk (Top - 1);
   k = gestionVar (lr);
-  t = Top - 2;
-  C2F(intersci).ntypes[t] = '$';
-  C2F(intersci).iwhere[t] = lr;
-  
+
   if (k == -1)
     {
       CANCEL ();
       Scierror (9999, "The type of the variable 1 is not managed by SciMax\r\n");
       return -1;
-    } 
-  
+    }
+
   determineOp (stri[9] - 65);
-  
+
   lr = *Lstk (Top);
   k = gestionVar (lr);
-  t = Top - 1;
-  C2F(intersci).ntypes[t] = '$';
-  C2F(intersci).iwhere[t] = lr;
-  
+
   if (k == -1)
     {
       CANCEL ();
       Scierror (9999, "The type of the variable 2 is not managed by SciMax\r\n");
       return -1;
-    } 
-  
+    }
+
   Putc (')', is);
   Putc ('$', is);
   Putc ('\n', is);
@@ -89,21 +95,41 @@ maxevalop (pos, stri)
   return recupResult (pos);
 }
 
-INLINE void 
+/* Element count of the operand at input position `pos`: for this toolbox's
+   own "sym" mlist, the size of its 'rep' field (a scalar sym has a 1x1 rep);
+   otherwise the size of the value itself. Replaces the original's raw
+   istk(iadr(...)) header walk -- same "is this a scalar (size 1) or a
+   matrix" question, asked via api_scilab instead of raw memory. */
+static int
+sm_opSize (int pos)
+{
+  int *piAddr = NULL;
+  int type = -1;
+  int m = 0, n = 0;
+
+  if (__sm_err (getVarAddressFromPosition (pvApiCtx, pos, &piAddr)) || piAddr == NULL)
+    return 1;
+  if (__sm_err (getVarType (pvApiCtx, piAddr, &type)))
+    return 1;
+  if (type == sci_mlist)
+    {
+      int *pRep = NULL;
+      if (__sm_err (getListItemAddress (pvApiCtx, piAddr, 3, &pRep)) || __sm_err (getVarDimension (pvApiCtx, pRep, &m, &n)))
+	return 1;
+      return m * n;
+    }
+  if (__sm_err (getVarDimension (pvApiCtx, piAddr, &m, &n)))
+    return 1;
+  return m * n;
+}
+
+INLINE void
 determineOp (op)
      char op;
 {
-  int *hi = istk (iadr (*Lstk (Top - 1)));
-  int *hj = istk (iadr (*Lstk (Top)));
-  int a,b;
-  
-  if (hi[0] == 17 && hi[1] == 3 && hi[14] == 28 && hi[15] == 34 && hi[16] == 22)
-    a = hi[31] * hi[32] - 1;
-  else a = hi[1] * hi[2] - 1;
-  if (hj[0] == 17 && hj[1] == 3 && hj[14] == 28 && hj[15] == 34 && hj[16] == 22)
-    b = hj[31] * hj[32] - 1;
-  else b = hj[1] * hj[2] - 1;
-  
+  int a = sm_opSize (Top - 1) - 1;
+  int b = sm_opSize (Top) - 1;
+
   switch (op)
     {
     case __ADD :
@@ -138,7 +164,7 @@ determineOp (op)
 	  Putc ('i', is);
 	  Putc (!b ? '*' : '.', is);
 	}
-      else 
+      else
 	{
 	  Putc ('_', is);
 	  Putc ('b', is);
@@ -181,14 +207,14 @@ determineOp (op)
     case __LEQ :
       Putc ('<', is);
       Putc ('=', is);
-      return; 
+      return;
     case __GREAT :
       Putc ('>', is);
       return;
     case __GEQ :
       Putc ('>', is);
       Putc ('=', is);
-      return; 
+      return;
     case __NEQ :
       Putc ('#', is);
       return;

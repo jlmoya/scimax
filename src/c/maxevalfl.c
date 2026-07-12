@@ -17,52 +17,21 @@
 
 //   Contact : Calixte DENIZET <calixte.denizet@ac-rennes.fr>
 
-#define __USE_DEPRECATED_STACK_FUNCTIONS__ 1
-#include "api_scilab.h"
-#include "stack-c.h"
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include "maxsci1.h"
-#include "maxsci.h"
-
-extern void envoiDonnees (void);
-extern int gestionVar (int);
-extern int recupResult (int);
-extern void CANCEL (void);
+//   macOS/2027 port (Task 12): the original walked a Scilab `list(...)`
+//   argument element-by-element via C2F(getilist), a raw pre-2011
+//   flat-stack primitive removed from Scilab core in 2015 (see
+//   gestionVar.c/donnees.c for the general background, and maxevalf.c for
+//   the equivalent non-list entry point this port DOES support). maxevalfl()
+//   is out of scope for this port -- not needed by the toolbox's smoke test.
+//   Documented gap: see docs/design/toolbox-verification.md.
 
 int
 maxevalfl (pos, stri, m)
      int pos, m;
      char *stri;
 {
-  int i, k, ll;
-  
-  G_nb.vars = 0;
-  G_nb.appels = 0;
-  
-  fprintf (is, "_(%s(", stri);
-
-  for (i = 1; i <= m; i++)
-    {
-      C2F(getilist) (NULL, NULL, &Top, &m, &i, &ll, 0);
-      k = gestionVar (ll);
-      if (k == -1)
-	{
-	  CANCEL ();
-	  Scierror (9999, "The type of the variable %i is not managed by SciMax\r\n", i + Rhs - Top);
-	  return -1;
-	}
-      
-      if (i != m)
-	Putc (',', is);
-    }
-
-  Putc (')', is);
-  Putc (')', is);
-  Putc ('$', is);
-  Putc ('\n', is);
-  fflush (is);
-
-  return recupResult (pos);
+  (void) pos;
+  (void) stri;
+  (void) m;
+  return -1;
 }

@@ -1,6 +1,10 @@
 mode(-1);
 maxima_path=getenv('MAXIMA_EXE_PATH');
-output=unix_g(maxima_path + ' -q --batch-string "":lisp (load \""make.lisp\"")""');
+// macOS/2027 port (Task 12): unix_g() is now a deprecated wrapper around
+// host() (warnobsolete since 2027.0.0); call host() directly. host()
+// returns [status, stdout, stderr] -- unix_g() used to hand back stdout
+// alone, so keep only that piece here.
+[%sm_lisp_status, output] = host(maxima_path + ' -q --batch-string "":lisp (load \""make.lisp\"")""');
 
 global %lisp_error;
 
