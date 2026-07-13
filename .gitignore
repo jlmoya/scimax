@@ -1,7 +1,53 @@
-*.o
-*.so
+#
+# Scilab compiled macros
+#
 *.bin
 lib
 names
-*~
+
+#
+# Documentation generation output
+# (jar/ is intentionally tracked in this repo -- the help jars are committed)
+#
+inline/
+help/en_US/master_help.xml
+help/en_US/scilab_en_US_help/
+help/fr_FR/master_help.xml
+help/fr_FR/scilab_fr_FR_help/
+
+#
+# Generated loader/cleaner scripts
+#
 loader.sce
+unloader.sce
+cleaner.sce
+
+#
+# Generated gateway sources (produced by ilib_build)
+#
+src/c/libmaxima.cpp
+src/c/libmaxima.h
+src/c/libmaxima.hxx
+
+#
+# Compiled native libraries / objects
+#
+*.dylib
+*.so
+*.o
+*.obj
+*.a
+*.dll
+
+#
+# Compiled Lisp fasls
+#
+*.fasl
+
+#
+# backup / editor / OS files
+#
+*~
+*.bak
+.DS_Store
+.vscode/
