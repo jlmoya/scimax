@@ -23,5 +23,19 @@ pNames=[['__det','det'];
         ['lhs','Lhs'];
 	['status','Status'];
 	['newline','Newline'];
-	['load','Load']]
+	['load','Load'];
+        // Maxima functions whose names are Scilab KEYWORDS. Without these the
+        // generator emits e.g. "function a=break(varargin)", which cannot parse,
+        // and genlib aborts the whole genmaxfun build partway through — which is
+        // the second reason genmaxfun had never been built. Same capitalisation
+        // convention as the entries above, which avoid clashes with Scilab
+        // FUNCTIONS rather than keywords.
+	['if','If'];
+	['for','For'];
+	['while','While'];
+	['do','Do'];
+	['break','Break'];
+	['return','Return'];
+	['catch','Catch'];
+	['quit','Quit']]
 	

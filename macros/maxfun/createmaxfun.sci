@@ -67,11 +67,21 @@ chret='a'
 test=''
 if narg==-1 then chvar='varargin)',ill='l', else
   if narg~=0 then
-    for i=1:narg-1	
-      chvar = chvar+code2str(9+i)+','
+    // Scilab 5 -> 6 API: code2str() was REMOVED. It mapped Scilab's internal
+    // character codes, where 10 is 'a', so code2str(9+i) produced the i-th
+    // lowercase letter as an argument name (a, b, c, ...) and code2str(10+narg)
+    // the next letter as the return name. ascii(96+i) yields exactly the same
+    // letters. This is the only reason genmaxfun was never generated -- not,
+    // as previously recorded, that the step "has never been run for this
+    // install"; running it failed with "Undefined variable: code2str".
+    if narg > 25 then
+      error(msprintf("createmaxfun: %s takes %d arguments; only 25 single-letter names are available.", scinam, narg));
     end
-    chvar = chvar+code2str(9+narg)+')'
-    chret = code2str(10+narg)
+    for i=1:narg-1	
+      chvar = chvar+ascii(96+i)+','
+    end
+    chvar = chvar+ascii(96+narg)+')'
+    chret = ascii(97+narg)
   else
     chvar = ')'
     chclo = ''''

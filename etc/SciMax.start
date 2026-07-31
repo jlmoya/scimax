@@ -24,13 +24,22 @@ mpath=strsubst(here','\','/')+'/../'
 
 setenv('SCIMAX_TOOLBOX_PATH',mpath)
 
-// macOS/2027 port (Task 12): the Overload Toolbox is a separate, optional
-// helper (not installed here) -- SciMax's own sym-type operator overloads
-// below (newfun on maxadd/maxpow/...) do not need it. Degrade gracefully
-// instead of the original abort; a genuine install still gets loaded.
+// The Overload Toolbox is absent and CANNOT be installed here. This is not a
+// packaging gap: its src/overstack.c drives Scilab 5's interpreter through
+// C2F(cvname), C2F(cvnamel) and C2F(createvarfromptr) — Fortran-bridge entry
+// points into the old symbol table, which Scilab 6 deleted when the interpreter
+// was rewritten around a C++ AST. Rebuilding it is not the issue; it needs
+// redesigning against native %<type>_<function> overloading.
+//
+// CORRECTION 2026-07-31: the previous note here claimed "SciMax's own overloads
+// do not need it". That is only true of the sym-type OPERATOR overloads
+// (newfun on maxadd/maxpow/...) further down. macros/maxfun/personnalizedOverload.sce
+// DOES need overload(), and once genmaxfun was built the load reached it and
+// aborted SciMax before its own macro libraries were registered. See the guard
+// at the genmaxfun block below.
 exec(here+'Overload_TB_path.sce',-1)
 if fileinfo(Overload_TB_path)==[] then
-  printf('Overload Toolbox not found; continuing without it (SciMax''s own overloads do not need it).\n')
+  printf('Overload Toolbox not found (Scilab-5-only; see etc/SciMax.start). SciMax''s sym-type operator overloads are unaffected.\n')
 else
   exec(Overload_TB_path,-1)
 end
@@ -135,10 +144,26 @@ end;
 // which calls the (equally absent) Overload Toolbox's overload() function.
 if isdir(mpath+'macros/maxfun/genmaxfun/') then
   SciMax_maxfunlib=lib(mpath+'macros/maxfun/genmaxfun/')
-  if fileinfo(mpath+'macros/maxfun/personnalizedOverload.sce')==[] then
-    exec(mpath+'macros/maxfun/genmaxfun/overload.sce',-1)
+  // Both overload scripts call overload(), which ONLY the Overload Toolbox
+  // provides. That toolbox cannot run here and this is not a packaging gap:
+  // its src/overstack.c drives Scilab 5's interpreter through C2F(cvname),
+  // C2F(cvnamel) and C2F(createvarfromptr) — Fortran-bridge entry points into
+  // the old symbol table, which Scilab 6 deleted when the interpreter was
+  // rewritten around a C++ AST. Porting it means redesigning it, not rebuilding
+  // it. The modern equivalent is native overloading (%<type>_<function>
+  // macros), which is a separate piece of work on SciMax itself.
+  //
+  // So guard on the function rather than on the file. Without this guard the
+  // whole SciMax load ABORTS here, and SciMax_percentlib/SciMaxlib below never
+  // load — which is exactly what happened the moment genmaxfun was first built.
+  if isdef('overload') then
+    if fileinfo(mpath+'macros/maxfun/personnalizedOverload.sce')==[] then
+      exec(mpath+'macros/maxfun/genmaxfun/overload.sce',-1)
+    else
+      exec(mpath+'macros/maxfun/personnalizedOverload.sce',-1)
+    end
   else
-    exec(mpath+'macros/maxfun/personnalizedOverload.sce',-1)
+    printf('SciMax: Maxima overloads of Scilab macros (cotg, eval, rank, ... on sym types) are not registered — they need the Overload Toolbox, which is Scilab-5-only. maxevalf/maxevalfl and the %d generated maxfun macros are unaffected.\n', 1363)
   end
 else
   printf('macros/maxfun/genmaxfun not built; skipping the generated Maxima-function convenience macros (use maxevalf/maxevalfl directly).\n')
