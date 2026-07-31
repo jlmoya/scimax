@@ -34,11 +34,40 @@
 
 ;; The environment variable SCIMAX_TOOLBOX_PATH is set by Scilab in the file etc/SciMax.start
 
-(handler-case
- (let ((path (concatenate 'string (sm_getenv "SCIMAX_TOOLBOX_PATH") "/src/lisp/")))
-       (load (concatenate 'string path "scimath"))
-       (load (concatenate 'string path "scimax")))
- (error () (format t "Files scimath and scimax cannot be loaded~%<BD>~%")))
+;; macOS/2027 port: recompile-and-retry if the prebuilt .fasl files will not load.
+;;
+;; A .fasl is locked to the exact Lisp build that produced it. SBCL refuses one
+;; with "is a fasl file compiled with SBCL 2.6.5-85913ede1, and can't be loaded
+;; into SBCL 2.6.6" -- so a routine `brew upgrade sbcl` (or a Maxima upgrade that
+;; pulls a new SBCL) silently breaks a working scimax install. The only symptom
+;; the user ever sees is maxinit.c's "Maxima started but could not load
+;; scimax/scimath", which names neither the fasl nor the version skew. That is
+;; exactly how this broke here: fasls built 2026-07-12 against 2.6.5 stopped
+;; loading once 2.6.6 arrived.
+;;
+;; The .lisp sources are version independent, so recompiling recovers without
+;; any manual step. Compiler chatter is muted because this file is loaded OVER
+;; the Scilab<->Maxima pipe, whose framing depends on exact "<EO>" markers --
+;; stray warnings on stdout would corrupt the wire, turning a self-heal into a
+;; worse failure than the one it fixes. If recompiling is impossible too (a
+;; read-only install, say), the original message is still what comes out.
+(let ((path (concatenate 'string (sm_getenv "SCIMAX_TOOLBOX_PATH") "/src/lisp/")))
+  (handler-case
+   (progn
+     (load (concatenate 'string path "scimath"))
+     (load (concatenate 'string path "scimax")))
+   (error ()
+     (handler-case
+      (progn
+        (let ((*standard-output* (make-broadcast-stream))
+              (*error-output*    (make-broadcast-stream)))
+          (compile-file (concatenate 'string path "scimath.lisp")
+                        :verbose nil :print nil)
+          (compile-file (concatenate 'string path "scimax.lisp")
+                        :verbose nil :print nil))
+        (load (concatenate 'string path "scimath"))
+        (load (concatenate 'string path "scimax")))
+      (error () (format t "Files scimath and scimax cannot be loaded~%<BD>~%"))))))
 (format t "Files scimath and scimax loaded~%")
 
 ;; macOS/2027 port (Task 12): activate the <EO> wire prompt HERE, at load
