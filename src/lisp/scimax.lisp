@@ -146,7 +146,7 @@
   (cond (*mdebug*
 	 (let ((dispflag t) ret)
 	   (declare (special $help dispflag))
-	   (format t " -- an error.  Entering the Maxima Debugger dbm~%~Enter `:h' for help~%<EE>")
+	   (format t " -- an error.  Entering the Maxima Debugger dbm~%Enter `:h' for help~%<EE>")
 	   (setq *niv* nil)
 	   (progn
 	     (setq ret (break-dbm-loop nil)) 
